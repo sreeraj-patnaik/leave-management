@@ -1,5 +1,7 @@
 <?php
-session_start();
+include '../config/db.php';
+
+session_unset();
 session_destroy();
-header("Location: login.php");
+redirect('/auth/login.php');
 ?>

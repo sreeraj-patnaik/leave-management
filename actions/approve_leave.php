@@ -1,45 +1,47 @@
 <?php
 include '../config/db.php';
 include '../includes/auth_check.php';
+require_role(['faculty', 'hod', 'principal']);
 
-$leave_id = $_GET['id'];
-$action = $_GET['action'];
-
-$user_id = $_SESSION['user_id'];
-$user = $conn->query("SELECT * FROM users WHERE id=$user_id")->fetch_assoc();
-$role = $user['role'];
-
-$leave = $conn->query("SELECT * FROM leaves WHERE id=$leave_id")->fetch_assoc();
-
-if ($action == 'reject') {
-    $conn->query("UPDATE leaves SET status='rejected' WHERE id=$leave_id");
-}
-else {
-
-    if ($role == 'faculty') {
-        $hod = $conn->query("SELECT id FROM users WHERE role='hod' AND department='".$user['department']."'")->fetch_assoc();
-        $conn->query("UPDATE leaves SET current_approver_id=".$hod['id']." WHERE id=$leave_id");
-    }
-
-    elseif ($role == 'hod') {
-        $days = (strtotime($leave['to_date']) - strtotime($leave['from_date'])) / 86400;
-
-        if ($days > 3) {
-            $p = $conn->query("SELECT id FROM users WHERE role='principal'")->fetch_assoc();
-            $conn->query("UPDATE leaves SET current_approver_id=".$p['id']." WHERE id=$leave_id");
-        } else {
-            $conn->query("UPDATE leaves SET status='approved' WHERE id=$leave_id");
-        }
-    }
-
-    elseif ($role == 'principal') {
-        $conn->query("UPDATE leaves SET status='approved' WHERE id=$leave_id");
-    }
+if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !verify_csrf_token($_POST['csrf_token'] ?? null)) {
+    redirect('/approver/dashboard.php');
 }
 
-// log
-$conn->query("INSERT INTO approval_log (leave_id, approved_by, role, status)
-              VALUES ($leave_id, $user_id, '$role', '$action')");
+$leaveId = filter_input(INPUT_POST, 'id', FILTER_VALIDATE_INT);
+$action = $_POST['action'] ?? '';
 
-header("Location: ../approver/dashboard.php");
+if (!$leaveId || !in_array($action, ['approve', 'reject'], true)) {
+    redirect('/approver/dashboard.php');
+}
+
+$stmt = $pdo->prepare('SELECT * FROM leaves WHERE id = ? AND current_approver_id = ?');
+$stmt->execute([$leaveId, $current_user['id']]);
+$leave = $stmt->fetch();
+
+if (!$leave) {
+    redirect('/approver/dashboard.php');
+}
+
+$pdo->beginTransaction();
+
+try {
+    if ($action === 'reject') {
+        $update = $pdo->prepare('UPDATE leaves SET status = ?, current_approver_id = NULL WHERE id = ?');
+        $update->execute(['rejected', $leaveId]);
+        $logStatus = 'rejected';
+    } else {
+        $update = $pdo->prepare('UPDATE leaves SET status = ?, current_approver_id = NULL WHERE id = ?');
+        $update->execute(['approved', $leaveId]);
+        $logStatus = 'approved';
+    }
+
+    $log = $pdo->prepare('INSERT INTO approval_log (leave_id, approved_by, role, status) VALUES (?, ?, ?, ?)');
+    $log->execute([$leaveId, $current_user['id'], $current_user['role'], $logStatus]);
+
+    $pdo->commit();
+} catch (Exception $e) {
+    $pdo->rollBack();
+}
+
+redirect('/approver/dashboard.php');
 ?>
