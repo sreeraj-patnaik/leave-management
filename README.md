@@ -6,10 +6,9 @@ A secure, role-based leave management system built with PHP and MySQL.
 
 - Secure authentication with hashed passwords and session hardening
 - Student leave application with leave-type support and improved validation
-- Department-aware student approval chain: student → faculty → HOD → principal
-- Escalation when assigned faculty or HOD are on leave during the requested dates
 - Approver workflow for faculty, HOD, and principal with CSRF-protected actions
-- Bootstrap-based responsive UI
+- Approval logs for transparency and audits
+- College-inspired, responsive UI styling
 - Prepared SQL statements for database safety
 
 ## Setup
@@ -23,5 +22,5 @@ A secure, role-based leave management system built with PHP and MySQL.
 
 ## Notes
 
-- Existing plain-text passwords are migrated to secure hashes at login.
+- Existing users must have hashed passwords before login.
 - Use `APP_ROOT` in `config/db.php` if the application is hosted in a different folder.

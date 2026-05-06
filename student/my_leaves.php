@@ -3,56 +3,106 @@ include '../config/db.php';
 include '../includes/auth_check.php';
 require_role(['student']);
 
-$stmt = $pdo->prepare('SELECT l.*, u.name AS approver_name FROM leaves l LEFT JOIN users u ON l.current_approver_id = u.id WHERE l.user_id = ? ORDER BY l.id DESC');
+$stmt = $pdo->prepare(
+    'SELECT l.*, u.name AS approver_name, u.emp_id, u.regd_no
+     FROM leaves l
+     LEFT JOIN users u ON l.current_approver_id = u.id
+     WHERE l.user_id = ?
+     ORDER BY l.id DESC'
+);
+
 $stmt->execute([$current_user['id']]);
 $leaves = $stmt->fetchAll();
 
 include '../includes/header.php';
 ?>
-<div class="row">
-    <div class="col-lg-10">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <div>
-                <h2 class="mb-0">My Leaves</h2>
-                <p class="text-muted mb-0">Review your leave history and current request status.</p>
-            </div>
-            <a href="<?= APP_ROOT ?>/student/apply_leave.php" class="btn btn-success">Apply for Leave</a>
+
+<div class="container mt-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold">My Leaves</h2>
+            <p class="text-muted mb-0">Track all your leave requests and approval status.</p>
         </div>
 
-        <?php if (empty($leaves)): ?>
-            <div class="alert alert-info">You have no leave requests yet.</div>
-        <?php else: ?>
-            <div class="table-responsive">
-                <table class="table table-bordered table-hover align-middle">
-                    <thead class="table-light">
-                        <tr>
-                            <th scope="col">From</th>
-                            <th scope="col">To</th>
-                            <th scope="col">Type</th>
-                            <th scope="col">Reason</th>
-                            <th scope="col">Approver</th>
-                            <th scope="col">Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($leaves as $leave): ?>
-                            <tr>
-                                <td><?= h($leave['from_date']) ?></td>
-                                <td><?= h($leave['to_date']) ?></td>
-                                <td><?= h($leave['leave_type'] ?? 'N/A') ?></td>
-                                <td><?= h($leave['reason']) ?></td>
-                                <td><?= h($leave['approver_name'] ?? 'Not assigned') ?></td>
-                                <td>
-                                    <span class="badge <?= $leave['status'] === 'approved' ? 'bg-success' : ($leave['status'] === 'rejected' ? 'bg-danger' : 'bg-secondary') ?>">
-                                        <?= h(ucfirst($leave['status'])) ?>
-                                    </span>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
-            </div>
-        <?php endif; ?>
+        <div class="d-flex gap-2">
+            <a href="<?= APP_ROOT ?>/student/apply_leave.php" class="btn btn-primary">
+                Apply Leave
+            </a>
+            <a href="<?= APP_ROOT ?>/student/logs.php" class="btn btn-outline-secondary">
+                View Logs
+            </a>
+        </div>
     </div>
+
+    <?php if (empty($leaves)): ?>
+        <div class="alert alert-info text-center">
+            No leave requests found.
+        </div>
+    <?php else: ?>
+
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover align-middle">
+
+                <thead class="table-light text-center">
+                    <tr>
+                        <th>Period</th>
+                        <th>Type</th>
+                        <th>Reason</th>
+                        <th>Current Approver</th>
+                        <th>Approver ID</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    <?php foreach ($leaves as $leave): ?>
+                        <tr>
+
+                            <td>
+                                <strong><?= h($leave['from_date']) ?></strong>
+                                <br>
+                                <small class="text-muted">to</small>
+                                <br>
+                                <strong><?= h($leave['to_date']) ?></strong>
+                            </td>
+
+                            <td class="text-center">
+                                <?= h($leave['leave_type'] ?? '-') ?>
+                            </td>
+
+                            <td style="max-width: 200px;">
+                                <?= h($leave['reason']) ?>
+                            </td>
+
+                            <td class="text-center">
+                                <?= h($leave['approver_name'] ?? '-') ?>
+                            </td>
+
+                            <td class="text-center">
+                                <?= h($leave['emp_id'] ?: ($leave['regd_no'] ?: '-')) ?>
+                            </td>
+
+                            <td class="text-center">
+                                <?php if ($leave['status'] === 'approved'): ?>
+                                    <span class="badge bg-success">Approved</span>
+                                <?php elseif ($leave['status'] === 'rejected'): ?>
+                                    <span class="badge bg-danger">Rejected</span>
+                                <?php else: ?>
+                                    <span class="badge bg-warning text-dark">Pending</span>
+                                <?php endif; ?>
+                            </td>
+
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+
+            </table>
+        </div>
+
+    <?php endif; ?>
+
 </div>
+
 <?php include '../includes/footer.php'; ?>
+

@@ -6,13 +6,19 @@ CREATE TABLE IF NOT EXISTS `users` (
   `name` VARCHAR(100) NOT NULL,
   `email` VARCHAR(150) NOT NULL UNIQUE,
   `password` VARCHAR(255) NOT NULL,
+  `regd_no` VARCHAR(30) DEFAULT NULL UNIQUE,
+  `emp_id` VARCHAR(30) DEFAULT NULL UNIQUE,
   `role` ENUM('student','faculty','hod','principal') NOT NULL DEFAULT 'student',
   `department` VARCHAR(100) DEFAULT NULL,
   `assigned_faculty_id` INT UNSIGNED DEFAULT NULL,
+  `status` ENUM('pending','approved','rejected') NOT NULL DEFAULT 'approved',
+  `approved_by` INT UNSIGNED DEFAULT NULL,
   `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   INDEX `idx_users_department` (`department`),
-  FOREIGN KEY (`assigned_faculty_id`) REFERENCES `users`(`id`) ON DELETE SET NULL
+  INDEX `idx_users_status` (`status`),
+  FOREIGN KEY (`assigned_faculty_id`) REFERENCES `users`(`id`) ON DELETE SET NULL,
+  FOREIGN KEY (`approved_by`) REFERENCES `users`(`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `leaves` (
@@ -26,6 +32,8 @@ CREATE TABLE IF NOT EXISTS `leaves` (
   `status` ENUM('pending','approved','rejected') NOT NULL DEFAULT 'pending',
   `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
+  INDEX `idx_leaves_user` (`user_id`),
+  INDEX `idx_leaves_approver` (`current_approver_id`),
   FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE,
   FOREIGN KEY (`current_approver_id`) REFERENCES `users`(`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -38,6 +46,9 @@ CREATE TABLE IF NOT EXISTS `approval_log` (
   `status` ENUM('approved','rejected') NOT NULL,
   `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
+  INDEX `idx_approval_leave` (`leave_id`),
+  INDEX `idx_approval_by` (`approved_by`),
   FOREIGN KEY (`leave_id`) REFERENCES `leaves`(`id`) ON DELETE CASCADE,
   FOREIGN KEY (`approved_by`) REFERENCES `users`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+

@@ -1,0 +1,337 @@
+/* ================= ROOT ================= */
+:root {
+  --primary: #0b1f3a;
+  --primary-2: #123b6d;
+  --accent: #d7262b;
+
+  --bg: #f5f7fb;
+  --white: #ffffff;
+  --text: #0f172a;
+  --muted: #64748b;
+  --border: #e2e8f0;
+
+  --shadow: 0 4px 12px rgba(0,0,0,0.06);
+  --shadow-lg: 0 10px 28px rgba(0,0,0,0.12);
+}
+
+/* ================= BASE ================= */
+body {
+  font-family: "Segoe UI", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+h1,h2,h3,h4 {
+  font-weight: 700;
+}
+
+a {
+  text-decoration: none;
+}
+
+/* ================= HEADER ================= */
+.utility-bar {
+  background: #081426;
+  color: #fff;
+  font-size: 0.8rem;
+  padding: 5px 0;
+}
+
+.lendi-topbar {
+  background: var(--primary);
+  color: white;
+  border-bottom: 3px solid var(--accent);
+}
+
+.crest {
+  background: white;
+  color: var(--primary);
+  padding: 6px 10px;
+  font-weight: bold;
+  border-radius: 6px;
+}
+
+/* ================= LAYOUT ================= */
+.lendi-shell {
+  display: flex;
+}
+
+.lendi-sidebar {
+  width: 220px;
+  background: white;
+  border-right: 1px solid var(--border);
+  min-height: 100vh;
+  padding: 15px;
+}
+
+.sidebar-link {
+  display: block;
+  padding: 8px;
+  border-radius: 6px;
+  color: var(--text);
+  margin-bottom: 5px;
+  font-weight: 500;
+}
+
+.sidebar-link:hover {
+  background: #f1f5f9;
+  color: var(--accent);
+}
+
+.lendi-content {
+  flex: 1;
+  padding: 20px;
+}
+
+/* ================= HERO ================= */
+.page-hero {
+  background: linear-gradient(135deg, var(--primary), var(--primary-2));
+  color: white;
+  padding: 20px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+}
+
+.page-hero h1 {
+  color: white;
+}
+
+/* ================= CARDS ================= */
+.card {
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+
+/* ================= TABLE ================= */
+.table {
+  background: white;
+}
+
+.table th {
+  background: #f1f5f9;
+  font-weight: 600;
+}
+
+.table tr:hover {
+  background: #f8fafc;
+}
+
+/* ================= STATUS ================= */
+.badge {
+  padding: 6px 10px;
+  font-size: 0.8rem;
+}
+
+.bg-success { background: #1f8f5a !important; }
+.bg-danger { background: #d7262b !important; }
+.bg-warning { background: #f2b83f !important; color:#000; }
+
+/* ================= BUTTONS ================= */
+.btn-primary {
+  background: var(--primary);
+  border: none;
+}
+
+.btn-primary:hover {
+  background: #0a2a52;
+}
+
+.btn-outline-secondary {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.btn-outline-secondary:hover {
+  background: var(--primary);
+  color: white;
+}
+
+/* ================= FORMS ================= */
+.form-control, .form-select {
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.form-control:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 0.15rem rgba(11,31,58,0.15);
+}
+
+/* ================= STATS ================= */
+.stat-card {
+  background: white;
+  padding: 15px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  text-align: center;
+}
+
+.stat-card h3 {
+  margin: 5px 0;
+}
+
+/* ================= LOGIN ================= */
+.login-shell {
+  display: flex;
+  gap: 30px;
+  align-items: center;
+}
+
+.login-panel {
+  background: linear-gradient(135deg, var(--primary), var(--primary-2));
+  color: white;
+  padding: 30px;
+  border-radius: 12px;
+}
+
+.login-card {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: var(--shadow-lg);
+}
+
+/* ================= FOOTER ================= */
+.lendi-footer {
+  background: #0a1a32;
+  color: white;
+  padding: 25px 0;
+  margin-top: 40px;
+}
+
+.footer-link {
+  color: #ffffff;
+  opacity: 0.85;
+}
+
+.footer-link:hover {
+  opacity: 1;
+  text-decoration: underline;
+}
+
+/* ================= RESPONSIVE ================= */
+@media(max-width: 768px) {
+  .lendi-shell {
+    flex-direction: column;
+  }
+
+  .lendi-sidebar {
+    width: 100%;
+  }
+
+  .login-shell {
+    flex-direction: column;
+  }
+}
+
+
+/* ===== FORM WRAPPER ===== */
+.form-container {
+  max-width: 520px;
+  margin: 40px auto;
+}
+
+.form-card {
+  background: white;
+  padding: 25px;
+  border-radius: 12px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+  border: 1px solid #e2e8f0;
+}
+
+.form-title {
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.form-subtitle {
+  font-size: 0.9rem;
+  color: #64748b;
+  margin-bottom: 20px;
+}
+
+.form-control, .form-select {
+  padding: 10px;
+  border-radius: 8px;
+  font-size: 0.95rem;
+}
+
+.form-control:focus {
+  border-color: #0b1f3a;
+  box-shadow: 0 0 0 0.15rem rgba(11,31,58,0.15);
+}
+
+.btn-main {
+  background: #0b1f3a;
+  color: white;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-weight: 600;
+  border: none;
+}
+
+.btn-main:hover {
+  background: #0a2a52;
+}
+
+.btn-secondary-custom {
+  border: 1px solid #0b1f3a;
+  color: #0b1f3a;
+  border-radius: 8px;
+  padding: 8px 16px;
+}
+
+.btn-secondary-custom:hover {
+  background: #0b1f3a;
+  color: white;
+}
+
+
+.alert {
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.alert-success {
+  background: #e6f4ea;
+  color: #1f8f5a;
+}
+
+.alert-danger {
+  background: #fdecea;
+  color: #d7262b;
+}
+
+.approval-card {
+  background: white;
+  padding: 15px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.approval-info {
+  font-weight: 500;
+}
+
+.approval-actions button {
+  margin-left: 5px;
+}
+
+.table {
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.table th {
+  background: #f1f5f9;
+  font-weight: 600;
+}
+
+.table td {
+  vertical-align: middle;
+}
