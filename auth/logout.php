@@ -1,7 +1,6 @@
 <?php
-include '../config/db.php';
-
-session_unset();
+session_start();
 session_destroy();
-redirect('/auth/login.php');
+header("Location: /leave_management_system/auth/login.php");
+exit();
 ?>

@@ -1,134 +1,182 @@
 <?php
-include '../config/db.php';
-include '../includes/auth_check.php';
-require_role(['student', 'faculty', 'hod']);
+$page_title = 'Apply Leave';
+require_once __DIR__ . '/../includes/header.php';
+checkRole('student');
 
-$error = '';
-$success = '';
-$from = '';
-$to = '';
-$reason = '';
-$leaveType = 'Casual';
-$maxReasonLength = 500;
-
-$leaveTypes = ['Casual','Sick','Earned','Maternity','Study','Other'];
+$user_id = $_SESSION['user_id'];
+$user = getUserById($conn, $user_id);
+$identifier_label = getIdentifierLabel('student');
+$errors = [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!verify_csrf_token($_POST['csrf_token'] ?? null)) {
-        $error = 'Invalid form submission.';
+    $leave_type = sanitize($_POST['leave_type'] ?? '');
+    $from_date = sanitize($_POST['from_date'] ?? '');
+    $to_date = sanitize($_POST['to_date'] ?? '');
+    $expected_duration = sanitize($_POST['expected_duration'] ?? '');
+    $reason = sanitize($_POST['reason'] ?? '');
+    $is_medical = isset($_POST['is_medical']) ? 1 : 0;
+    
+    // Validation
+    if (!in_array($leave_type, ['casual', 'medical'])) {
+        $errors[] = 'Invalid leave type.';
+    }
+    
+    if (empty($from_date)) {
+        $errors[] = 'From date is required.';
+    }
+    
+    // Medical leave logic
+    if ($is_medical || $leave_type === 'medical') {
+        $is_medical = 1;
+        $leave_type = 'medical';
+        $status = 'open';
+        $to_date = null; // No end date for medical leave
+        
+        if (empty($expected_duration)) {
+            $errors[] = 'Expected duration is required for medical leave.';
+        }
     } else {
-        $from = trim($_POST['from'] ?? '');
-        $to = trim($_POST['to'] ?? '');
-        $reason = trim($_POST['reason'] ?? '');
-        $leaveType = trim($_POST['leave_type'] ?? 'Casual');
-
-        $fromDate = DateTime::createFromFormat('Y-m-d', $from);
-        $toDate = DateTime::createFromFormat('Y-m-d', $to);
-
-        if (!$fromDate || !$toDate) {
-            $error = 'Enter valid dates.';
-        } elseif ($fromDate > $toDate) {
-            $error = 'End date must be after start date.';
-        } elseif ($reason === '') {
-            $error = 'Reason is required.';
-        } elseif (strlen($reason) > $maxReasonLength) {
-            $error = 'Max 500 characters allowed.';
-        } elseif (!in_array($leaveType, $leaveTypes, true)) {
-            $error = 'Invalid leave type.';
-        } else {
-            $approverId = get_final_approver_for_requester($pdo, $current_user);
-
-            if (!$approverId) {
-                $error = 'Approver not found. Contact admin.';
-            } else {
-                $stmt = $pdo->prepare(
-                    'INSERT INTO leaves 
-                     (user_id, leave_type, from_date, to_date, reason, current_approver_id, status) 
-                     VALUES (?, ?, ?, ?, ?, ?, ?)'
-                );
-
-                $stmt->execute([
-                    $current_user['id'],
-                    $leaveType,
-                    $from,
-                    $to,
-                    $reason,
-                    $approverId,
-                    'pending'
-                ]);
-
-                $success = 'Leave request submitted successfully.';
-                $from = $to = $reason = '';
-                $leaveType = 'Casual';
-            }
+        $status = 'pending';
+        if (empty($to_date)) {
+            $errors[] = 'To date is required for casual leave.';
         }
     }
+    
+    if (empty($reason)) {
+        $errors[] = 'Reason is required.';
+    }
+    
+    if (empty($errors)) {
+        $stmt = mysqli_prepare($conn, 
+            "INSERT INTO leave_requests (user_id, leave_type, from_date, to_date, expected_duration, reason, is_medical, status) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+        );
+        mysqli_stmt_bind_param($stmt, "isssssis", 
+            $user_id, $leave_type, $from_date, $to_date, $expected_duration, $reason, $is_medical, $status
+        );
+        
+        if (mysqli_stmt_execute($stmt)) {
+            setFlashMessage('success', 'Leave application submitted successfully!');
+            redirect('view_leaves.php');
+        } else {
+            $errors[] = 'Failed to submit leave application.';
+        }
+        mysqli_stmt_close($stmt);
+    }
 }
-
-$token = generate_csrf_token();
-include '../includes/header.php';
 ?>
 
-<div class="container mt-4">
-
-    <div class="mb-4">
-        <h2 class="fw-bold">Apply for Leave</h2>
-        <p class="text-muted">Submit your request and track approval status.</p>
-    </div>
-
-    <div class="card shadow-sm p-4">
-
-        <?php if ($error): ?>
-            <div class="alert alert-danger"><?= h($error) ?></div>
-        <?php elseif ($success): ?>
-            <div class="alert alert-success"><?= h($success) ?></div>
-        <?php endif; ?>
-
-        <form method="post" novalidate>
-            <input type="hidden" name="csrf_token" value="<?= h($token) ?>">
-
-            <div class="row mb-3">
-                <div class="col-md-6">
-                    <label class="form-label">Start Date</label>
-                    <input type="date" name="from" class="form-control" required value="<?= h($from) ?>">
-                </div>
-                <div class="col-md-6">
-                    <label class="form-label">End Date</label>
-                    <input type="date" name="to" class="form-control" required value="<?= h($to) ?>">
-                </div>
-            </div>
-
-            <div class="mb-3">
-                <label class="form-label">Leave Type</label>
-                <select name="leave_type" class="form-select">
-                    <?php foreach ($leaveTypes as $type): ?>
-                        <option value="<?= h($type) ?>" <?= $leaveType === $type ? 'selected' : '' ?>>
-                            <?= h($type) ?>
-                        </option>
+<div class="main-container">
+    <?php include __DIR__ . '/../includes/sidebar.php'; ?>
+    
+    <main class="main-content">
+        <div class="content-header">
+            <h2>Apply for Leave</h2>
+        </div>
+        
+        <div class="card">
+            <?php if (!empty($errors)): ?>
+            <div class="flash-message flash-error">
+                <ul style="margin: 0; padding-left: 20px;">
+                    <?php foreach ($errors as $error): ?>
+                    <li><?php echo htmlspecialchars($error); ?></li>
                     <?php endforeach; ?>
-                </select>
+                </ul>
             </div>
-
-            <div class="mb-4">
-                <label class="form-label">Reason</label>
-                <textarea name="reason" class="form-control" rows="4" maxlength="500"><?= h($reason) ?></textarea>
-                <small class="text-muted">Max 500 characters</small>
-            </div>
-
-            <div class="d-flex gap-2">
-                <button type="submit" class="btn btn-primary">
-                    Submit Request
-                </button>
-
-                <a href="<?= APP_ROOT ?>/student/my_leaves.php" class="btn btn-outline-secondary">
-                    View My Leaves
-                </a>
-            </div>
-
-        </form>
-
-    </div>
-
+            <?php endif; ?>
+            
+            <form method="POST">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Name</label>
+                        <input type="text" class="form-control" value="<?php echo htmlspecialchars($user['name']); ?>" readonly>
+                    </div>
+                    
+                <div class="form-group">
+                    <label><?php echo htmlspecialchars($identifier_label); ?></label>
+                    <input type="text" class="form-control" value="<?php echo htmlspecialchars(getIdentifierValue($user)); ?>" readonly>
+                </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="leave_type" class="required">Leave Type</label>
+                    <select id="leave_type" name="leave_type" class="form-control" required>
+                        <option value="">Select Leave Type</option>
+                        <option value="casual">Casual Leave</option>
+                        <option value="medical">Medical Leave</option>
+                    </select>
+                </div>
+                
+                <div class="form-group checkbox-group" id="medical-checkbox-group">
+                    <input type="checkbox" id="is_medical" name="is_medical" onchange="toggleMedicalFields()">
+                    <label for="is_medical">Medical Leave (Open-ended until recovery)</label>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="from_date" class="required">From Date</label>
+                        <input type="date" id="from_date" name="from_date" class="form-control" 
+                               value="<?php echo $from_date ?? ''; ?>" required>
+                    </div>
+                    
+                    <div class="form-group" id="to-date-group">
+                        <label for="to_date" class="required">To Date</label>
+                        <input type="date" id="to_date" name="to_date" class="form-control" 
+                               value="<?php echo $to_date ?? ''; ?>">
+                    </div>
+                </div>
+                
+                <div class="form-group" id="expected-duration-group" style="display: none;">
+                    <label for="expected_duration" class="required">Expected Duration</label>
+                    <input type="text" id="expected_duration" name="expected_duration" class="form-control" 
+                           placeholder="e.g., 1 week, 10 days" value="<?php echo $expected_duration ?? ''; ?>">
+                    <div class="form-hint">Approximate expected recovery time</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="reason" class="required">Reason</label>
+                    <textarea id="reason" name="reason" class="form-control" required><?php echo $reason ?? ''; ?></textarea>
+                </div>
+                
+                <div class="action-group">
+                    <button type="submit" class="btn btn-primary">Submit Application</button>
+                    <a href="dashboard.php" class="btn btn-secondary">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </main>
 </div>
 
-<?php include '../includes/footer.php'; ?>
+<script>
+document.getElementById('leave_type').addEventListener('change', function() {
+    if (this.value === 'medical') {
+        document.getElementById('is_medical').checked = true;
+        toggleMedicalFields();
+    }
+});
+
+function toggleMedicalFields() {
+    const isMedical = document.getElementById('is_medical').checked;
+    const toDateGroup = document.getElementById('to-date-group');
+    const expectedDurationGroup = document.getElementById('expected-duration-group');
+    const toDateInput = document.getElementById('to_date');
+    const expectedDurationInput = document.getElementById('expected_duration');
+    
+    if (isMedical) {
+        toDateGroup.style.display = 'none';
+        toDateInput.required = false;
+        toDateInput.value = '';
+        expectedDurationGroup.style.display = 'block';
+        expectedDurationInput.required = true;
+        document.getElementById('leave_type').value = 'medical';
+    } else {
+        toDateGroup.style.display = 'block';
+        toDateInput.required = true;
+        expectedDurationGroup.style.display = 'none';
+        expectedDurationInput.required = false;
+    }
+}
+</script>
+
+</body>
+</html>

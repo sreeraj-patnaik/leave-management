@@ -1,109 +1,108 @@
 <?php
-include '../config/db.php';
+require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../includes/functions.php';
 
-if (!empty($_SESSION['user_id'])) {
-    redirect('/index.php');
+// Redirect if already logged in
+if (isLoggedIn()) {
+    if (mustChangePassword()) {
+        redirect('/leave_management_system/auth/change_password.php');
+    }
+    redirect(getDashboardPathForRole($_SESSION['role']));
 }
 
 $error = '';
-$email = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!verify_csrf_token($_POST['csrf_token'] ?? null)) {
-        $error = 'Invalid session. Please try again.';
+    $email = sanitize($_POST['email'] ?? '');
+    $password = $_POST['password'] ?? '';
+    
+    if (empty($email) || empty($password)) {
+        $error = 'Please enter both email and password.';
     } else {
-        $email = trim($_POST['email'] ?? '');
-        $password = (string) ($_POST['password'] ?? '');
-        $passwordTrim = trim($password);
-
-        if ($email === '' || $passwordTrim === '') {
-            $error = 'Please provide both email and password.';
-        } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            $error = 'Enter a valid email address.';
-        } else {
-            $stmt = $pdo->prepare('SELECT id, password, role, name, status FROM users WHERE email = ?');
-            $stmt->execute([$email]);
-            $user = $stmt->fetch();
-
-            $storedPassword = $user['password'] ?? '';
-            $isHashed = $user && password_get_info($storedPassword)['algo'] !== 0;
-
-            $passwordOk = $user && password_verify($password, $storedPassword);
-            if (!$passwordOk && $user && !$isHashed) {
-                $passwordOk = hash_equals($storedPassword, $passwordTrim) || hash_equals(trim($storedPassword), $passwordTrim);
-            }
-
-            if ($user && $passwordOk) {
-                if (($user['status'] ?? 'approved') !== 'approved') {
-                    $error = 'Your account is awaiting approval.';
-                } else {
-                    if (!$isHashed) {
-                        $hash = password_hash($passwordTrim, PASSWORD_DEFAULT);
-                        $pdo->prepare('UPDATE users SET password = ? WHERE id = ?')
-                            ->execute([$hash, $user['id']]);
-                    }
-
-                    session_regenerate_id(true);
-                    $_SESSION['user_id'] = $user['id'];
-                    $_SESSION['role'] = $user['role'];
-                    $_SESSION['name'] = $user['name'] ?? $email;
-
-                    redirect('/index.php');
+        // Prepare statement to prevent SQL injection
+        $stmt = mysqli_prepare($conn, "SELECT id, name, email, password, role, department, regd_no, emp_no, designation, student_year, student_section, admin_team, must_change_password FROM users WHERE email = ?");
+        mysqli_stmt_bind_param($stmt, "s", $email);
+        mysqli_stmt_execute($stmt);
+        $result = mysqli_stmt_get_result($stmt);
+        
+        if ($user = mysqli_fetch_assoc($result)) {
+            if (password_verify($password, $user['password'])) {
+                // Set session variables
+                $_SESSION['user_id'] = $user['id'];
+                $_SESSION['name'] = $user['name'];
+                $_SESSION['email'] = $user['email'];
+                $_SESSION['role'] = $user['role'];
+                $_SESSION['department'] = $user['department'];
+                $_SESSION['regd_no'] = $user['regd_no'];
+                $_SESSION['emp_no'] = $user['emp_no'];
+                $_SESSION['designation'] = $user['designation'];
+                $_SESSION['student_year'] = $user['student_year'];
+                $_SESSION['student_section'] = $user['student_section'];
+                $_SESSION['admin_team'] = $user['admin_team'];
+                $_SESSION['identifier_no'] = !empty($user['regd_no']) ? $user['regd_no'] : $user['emp_no'];
+                $_SESSION['must_change_password'] = (int)$user['must_change_password'];
+                session_regenerate_id(true);
+                
+                // Redirect based on role
+                $role = $user['role'];
+                if ($user['must_change_password']) {
+                    setFlashMessage('warning', 'Please change your password to continue.');
+                    redirect('/leave_management_system/auth/change_password.php');
                 }
+                setFlashMessage('success', 'Welcome back, ' . $user['name'] . '!');
+                redirect(getDashboardPathForRole($role));
             } else {
                 $error = 'Invalid email or password.';
             }
+        } else {
+            $error = 'Invalid email or password.';
         }
+        mysqli_stmt_close($stmt);
     }
 }
-
-$token = generate_csrf_token();
 ?>
-
-<?php include '../includes/header.php'; ?>
-
-<div class="login-shell">
-    <div class="login-panel">
-        <div class="panel-badge">Official Institute Portal</div>
-        <h1>LIET Leave Management</h1>
-        <p>Secure access for students, faculty, HOD, and principal roles. Every approval is logged for audit and compliance.</p>
-        <div class="panel-meta">
-            <div>
-                <div class="meta-title">Campus</div>
-                <div>Vizianagaram, Andhra Pradesh</div>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Leave Management System</title>
+    <link rel="stylesheet" href="/leave_management_system/css/style.css">
+</head>
+<body class="auth-page">
+    <div class="login-container">
+        <div class="login-box">
+            <div class="login-header">
+                <img src="https://lendi.edu.in/assets/img/lendi-full-logo.png" alt="Lendi Institute of Engineering & Technology" class="site-logo login-logo">
+                <h1>Leave Management System</h1>
+                <p>Lendi Institute of Engineering & Technology</p>
             </div>
-            <div>
-                <div class="meta-title">Support</div>
-                <div>helpdesk@lendi.edu.in</div>
+            
+            <?php if ($error): ?>
+            <div class="flash-message flash-error">
+                <?php echo htmlspecialchars($error); ?>
+            </div>
+            <?php endif; ?>
+            
+            <form method="POST" class="login-form">
+                <div class="form-group">
+                    <label for="email">Email Address</label>
+                    <input type="email" id="email" name="email" class="form-control" 
+                           value="<?php echo htmlspecialchars($email ?? ''); ?>" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" class="form-control" required>
+                </div>
+                
+                <button type="submit" class="btn btn-primary">Login</button>
+            </form>
+            
+            <div class="login-footer">
+                <p>Don't have an account? <a href="register.php">Register here</a></p>
             </div>
         </div>
-        <div class="panel-note">Use your institute credentials to continue.</div>
     </div>
-
-    <div class="login-card">
-        <h3 class="mb-3">Sign In</h3>
-        <p class="text-muted mb-4">Authorized users only</p>
-
-        <?php if ($error): ?>
-            <div class="alert alert-danger"><?= h($error) ?></div>
-        <?php endif; ?>
-
-        <form method="post" novalidate>
-            <input type="hidden" name="csrf_token" value="<?= h($token) ?>">
-
-            <div class="mb-3">
-                <label class="form-label">Email</label>
-                <input type="email" name="email" class="form-control" required value="<?= h($email) ?>" placeholder="name@lendi.edu.in">
-            </div>
-
-            <div class="mb-4">
-                <label class="form-label">Password</label>
-                <input type="password" name="password" class="form-control" required placeholder="Enter password">
-            </div>
-
-            <button type="submit" class="btn btn-main w-100">Sign In</button>
-        </form>
-    </div>
-</div>
-
-<?php include '../includes/footer.php'; ?>
+</body>
+</html>
